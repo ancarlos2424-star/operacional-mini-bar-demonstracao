@@ -1,0 +1,231 @@
+{
+  "version": 4,
+  "nextId": 2,
+  "requests": [],
+  "losses": [],
+  "occurrences": [],
+  "extensions": [],
+  "conferences": [],
+  "chat": [
+    {
+      "id": 1,
+      "from": "Recepção",
+      "to": "Mini Bar",
+      "user": "Ana",
+      "text": "Teste de comunicação",
+      "createdAt": "2026-09-30T15:48:07.011Z",
+      "readBy": []
+    }
+  ],
+  "staff": [
+    {
+      "id": 1,
+      "name": "Ana",
+      "sector": "Recepção",
+      "active": true
+    },
+    {
+      "id": 2,
+      "name": "Claudinei",
+      "sector": "Recepção",
+      "active": true
+    },
+    {
+      "id": 3,
+      "name": "Mario",
+      "sector": "Recepção",
+      "active": true
+    },
+    {
+      "id": 4,
+      "name": "Igor",
+      "sector": "Recepção",
+      "active": true
+    },
+    {
+      "id": 5,
+      "name": "Gustavo",
+      "sector": "Recepção",
+      "active": true
+    },
+    {
+      "id": 6,
+      "name": "Jonatas",
+      "sector": "Recepção",
+      "active": true
+    },
+    {
+      "id": 7,
+      "name": "Wilson",
+      "sector": "Recepção",
+      "active": true
+    },
+    {
+      "id": 8,
+      "name": "Ailson",
+      "sector": "Recepção",
+      "active": true
+    },
+    {
+      "id": 9,
+      "name": "Jusselia",
+      "sector": "Governança",
+      "active": true
+    },
+    {
+      "id": 10,
+      "name": "Celma",
+      "sector": "Governança",
+      "active": true
+    },
+    {
+      "id": 11,
+      "name": "Viviane",
+      "sector": "Governança",
+      "active": true
+    },
+    {
+      "id": 12,
+      "name": "Francisco",
+      "sector": "Governança",
+      "active": true
+    },
+    {
+      "id": 13,
+      "name": "Claudio",
+      "sector": "Gerência",
+      "active": true
+    },
+    {
+      "id": 14,
+      "name": "Geussiane",
+      "sector": "Gerência",
+      "active": true
+    },
+    {
+      "id": 15,
+      "name": "Antonio",
+      "sector": "Mini Bar",
+      "active": true
+    },
+    {
+      "id": 16,
+      "name": "Andrea",
+      "sector": "Mini Bar",
+      "active": true
+    },
+    {
+      "id": 17,
+      "name": "Débora",
+      "sector": "Mini Bar",
+      "active": true
+    }
+  ],
+  "settings": {
+    "adminPin": "2580",
+    "sectorPasswords": {
+      "Recepção": "",
+      "Governança": "",
+      "Gerência": "",
+      "Mini Bar": ""
+    },
+    "floorAssignments": {
+      "6-11": [
+        "Andrea",
+        "Débora"
+      ],
+      "13-18": [
+        "Antonio"
+      ]
+    },
+    "products": [
+      {
+        "name": "AGUA NATURAL 510 ML",
+        "price": 8
+      },
+      {
+        "name": "AGUA COM GÁS 510 ML",
+        "price": 9
+      },
+      {
+        "name": "BATATA PRINGLES 35G",
+        "price": 15
+      },
+      {
+        "name": "COCA TRADICIONAL 350ML",
+        "price": 10
+      },
+      {
+        "name": "COCA ZERO 350ML",
+        "price": 10
+      },
+      {
+        "name": "CHOCOLATE BIS",
+        "price": 12
+      },
+      {
+        "name": "CERVEJA HEINEKEN 350ML",
+        "price": 18
+      },
+      {
+        "name": "GUARANÁ 350 ML",
+        "price": 10
+      },
+      {
+        "name": "TRIDENT MENTA",
+        "price": 5
+      },
+      {
+        "name": "TRIDENT MELANCIA",
+        "price": 5
+      }
+    ],
+    "configItems": [
+      {
+        "id": 1,
+        "type": "opcao",
+        "name": "Solicitação emergencial",
+        "description": "Permite que a Recepção solicite atendimento ao Mini Bar.",
+        "sector": "Recepção",
+        "active": true,
+        "order": 1
+      },
+      {
+        "id": 2,
+        "type": "status",
+        "name": "A CAMINHO",
+        "description": "Aviso operacional enviado pelo Mini Bar.",
+        "sector": "Mini Bar",
+        "active": true,
+        "order": 2
+      },
+      {
+        "id": 3,
+        "type": "status",
+        "name": "ELEVADOR CONGESTIONADO",
+        "description": "Aviso de atraso no deslocamento.",
+        "sector": "Mini Bar",
+        "active": true,
+        "order": 3
+      },
+      {
+        "id": 4,
+        "type": "mensagem",
+        "name": "Mensagem de atendimento",
+        "description": "Mensagem livre entre setores.",
+        "sector": "Todos",
+        "active": true,
+        "order": 4
+      },
+      {
+        "id": 5,
+        "type": "visibilidade",
+        "name": "Acessos / Não perturbe na Recepção",
+        "description": "Mostra à Recepção uma cópia somente leitura das ocorrências de acesso.",
+        "sector": "Recepção",
+        "active": true,
+        "order": 5
+      }
+    ]
+  }
+}
