@@ -3,6 +3,10 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const crypto = require('crypto');
+const { Pool } = require('pg');
+
+const pool = process.env.DATABASE_URL ? new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false }, max: 5, idleTimeoutMillis: 30000, connectionTimeoutMillis: 10000 }) : null;
+let pendingWrites = Promise.resolve();
 
 const PORT = Number(process.env.PORT || 3020);
 const ROOT = __dirname;
@@ -40,11 +44,43 @@ const staffSeed = [
 const defaultDb = {version:4,nextId:1,requests:[],losses:[],occurrences:[],extensions:[],conferences:[],chat:[],staff:staffSeed.map((x,i)=>({id:i+1,name:x[0],sector:x[1],active:true})),settings:{adminPin:'2580',sectorPasswords:{'Recepção':'','Mini Bar':'','Governança':'','Gerência':''},floorAssignments:{'6-11':['Andrea','Débora'],'13-18':['Antonio']},products:products.map(x=>({name:x.name,price:x.price})),configItems:[{id:1,type:'opcao',name:'Solicitação emergencial',description:'Permite que a Recepção solicite atendimento ao Mini Bar.',sector:'Recepção',active:true,order:1},{id:2,type:'status',name:'A CAMINHO',description:'Aviso operacional enviado pelo Mini Bar.',sector:'Mini Bar',active:true,order:2},{id:3,type:'status',name:'ELEVADOR CONGESTIONADO',description:'Aviso de atraso no deslocamento.',sector:'Mini Bar',active:true,order:3},{id:4,type:'mensagem',name:'Mensagem de atendimento',description:'Mensagem livre entre setores.',sector:'Todos',active:true,order:4},{id:5,type:'visibilidade',name:'Acessos / Não perturbe na Recepção',description:'Mostra à Recepção uma cópia somente leitura das ocorrências de acesso.',sector:'Recepção',active:true,order:5}]}};
 function loadDb(){try{const x=JSON.parse(fs.readFileSync(DB_FILE,'utf8'));for(const k of ['requests','losses','occurrences','extensions','conferences','chat','staff'])if(!Array.isArray(x[k]))x[k]=[];if(!x.settings)x.settings={adminPin:'2580'}; if(!x.settings.sectorPasswords)x.settings.sectorPasswords={'Recepção':'','Mini Bar':'','Governança':'','Gerência':''}; else if(!Object.prototype.hasOwnProperty.call(x.settings.sectorPasswords,'Mini Bar'))x.settings.sectorPasswords['Mini Bar']=''; if(!x.settings.floorAssignments)x.settings.floorAssignments={'6-11':['Andrea','Débora'],'13-18':['Antonio']}; if(!Array.isArray(x.settings.products))x.settings.products=products.map(x=>({name:x.name,price:x.price})); if(!Array.isArray(x.settings.configItems))x.settings.configItems=structuredClone(defaultDb.settings.configItems); return x;}catch{fs.writeFileSync(DB_FILE,JSON.stringify(defaultDb,null,2));return structuredClone(defaultDb);}}
 let db=loadDb();
-function save(){const tmp=DB_FILE+'.tmp';fs.writeFileSync(tmp,JSON.stringify(db,null,2));fs.renameSync(tmp,DB_FILE);}
+async function initializeDatabase(){
+  if(!pool) return;
+  await pool.query(`create table if not exists public.app_state (
+    id smallint primary key default 1 check (id = 1),
+    payload jsonb not null,
+    updated_at timestamptz not null default now()
+  )`);
+  await pool.query('alter table public.app_state enable row level security');
+  const result = await pool.query('select payload from public.app_state where id = 1');
+  if(result.rows.length){
+    db = result.rows[0].payload;
+    for(const k of ['requests','losses','occurrences','extensions','conferences','chat','staff']) if(!Array.isArray(db[k])) db[k]=[];
+    if(!db.settings) db.settings=structuredClone(defaultDb.settings);
+    if(!db.nextId) db.nextId=1;
+  } else {
+    await pool.query('insert into public.app_state (id,payload) values (1,$1::jsonb) on conflict (id) do nothing',[JSON.stringify(db)]);
+  }
+}
+function save(){
+  if(pool){
+    const snapshot = JSON.stringify(db);
+    pendingWrites = pendingWrites.then(()=>pool.query(
+      'insert into public.app_state (id,payload,updated_at) values (1,$1::jsonb,now()) on conflict (id) do update set payload=excluded.payload, updated_at=now()',
+      [snapshot]
+    ));
+    return pendingWrites;
+  }
+  const tmp=DB_FILE+'.tmp';fs.writeFileSync(tmp,JSON.stringify(db,null,2));fs.renameSync(tmp,DB_FILE);
+}
 function hashPassword(v){return crypto.createHash('sha256').update(String(v)).digest('hex');}
 function iso(){return new Date().toISOString();}
 function brDate(d=new Date()){return d.toLocaleString('pt-BR');}
-function send(res,status,obj,type='application/json'){res.writeHead(status,{'Content-Type':type,'Cache-Control':'no-store','Access-Control-Allow-Origin':'*'});res.end(type==='application/json'?JSON.stringify(obj):obj);}
+function send(res,status,obj,type='application/json'){
+  const finish=()=>{if(res.writableEnded)return;res.writeHead(status,{'Content-Type':type,'Cache-Control':'no-store','Access-Control-Allow-Origin':'*'});res.end(type==='application/json'?JSON.stringify(obj):obj);};
+  if(pool) pendingWrites.then(finish).catch(err=>{console.error('Falha ao persistir no Supabase:',err.message);if(!res.headersSent) {res.writeHead(503,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify({error:'Não foi possível confirmar a gravação no banco de dados. Tente novamente.'}));} else res.destroy(err);});
+  else finish();
+}
 function body(req){return new Promise((resolve,reject)=>{let s='';req.on('data',c=>{s+=c;if(s.length>1e6) req.destroy();});req.on('end',()=>{try{resolve(s?JSON.parse(s):{});}catch(e){reject(e);}});});}
 function notify(sectors,payload){const msg='data: '+JSON.stringify(payload)+'\n\n';clients.forEach(c=>{if(sectors.includes(c.sector)) c.res.write(msg);});}
 const clients=new Set(); const adminTokens=new Set();
@@ -101,4 +137,9 @@ function route(req,res){
   return send(res,404,{error:'Rota não encontrada.'});
 }
 const server=http.createServer((req,res)=>{if(req.method==='OPTIONS'){res.writeHead(204,{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Methods':'GET,POST,PATCH,OPTIONS','Access-Control-Allow-Headers':'Content-Type'});return res.end();}route(req,res);});
-server.listen(PORT,'0.0.0.0',()=>{console.log(`GRAN VILLAGIO MINI BAR ativo em http://localhost:${PORT}`);const nets=os.networkInterfaces();for(const [name,arr] of Object.entries(nets))for(const n of arr||[])if(n.family==='IPv4'&&!n.internal)console.log(`REDE: http://${n.address}:${PORT}`);});
+async function startServer(){
+  if(process.env.NODE_ENV==='production'&&!pool) throw new Error('DATABASE_URL é obrigatório em produção para evitar perda de dados.');
+  if(pool) await initializeDatabase();
+  server.listen(PORT,'0.0.0.0',()=>{console.log(`GRAN VILLAGIO MINI BAR ativo em http://localhost:${PORT}`);const nets=os.networkInterfaces();for(const [name,arr] of Object.entries(nets))for(const n of arr||[])if(n.family==='IPv4'&&!n.internal)console.log(`REDE: http://${n.address}:${PORT}`);});
+}
+startServer().catch(err=>{console.error('Falha ao iniciar o sistema:',err);process.exit(1);});
