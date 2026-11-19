@@ -9,6 +9,7 @@ const pool = process.env.DATABASE_URL ? new Pool({ connectionString: process.env
 let pendingWrites = Promise.resolve();
 
 const PORT = Number(process.env.PORT || 3020);
+const DEMO_MODE = process.env.DEMO_MODE === 'true';
 const ROOT = __dirname;
 const PUBLIC = path.join(ROOT, 'public');
 const DATA_DIR = path.join(ROOT, 'data');
@@ -65,7 +66,7 @@ async function initializeDatabase(){
 function save(){
   if(pool){
     const snapshot = JSON.stringify(db);
-    pendingWrites = pendingWrites.then(()=>pool.query(
+    pendingWrites = pendingWrites.catch(()=>{}).then(()=>pool.query(
       'insert into public.app_state (id,payload,updated_at) values (1,$1::jsonb,now()) on conflict (id) do update set payload=excluded.payload, updated_at=now()',
       [snapshot]
     ));
