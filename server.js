@@ -105,6 +105,18 @@ function send(res,status,obj,type='application/json'){
 }
 function body(req){return new Promise((resolve,reject)=>{let s='';req.on('data',c=>{s+=c;if(s.length>1e6) req.destroy();});req.on('end',()=>{try{resolve(s?JSON.parse(s):{});}catch(e){reject(e);}});});}
 function notify(sectors,payload){const msg='data: '+JSON.stringify(payload)+'\n\n';clients.forEach(c=>{if(sectors.includes(c.sector)) c.res.write(msg);});}
+function saveAndNotify(res,status,obj,sectors,payload){
+  Promise.resolve().then(()=>save()).then(()=>{
+    notify(sectors,payload);
+    send(res,status,obj);
+  }).catch(err=>{
+    console.error('Falha ao salvar operação antes da notificação:',err.message);
+    if(!res.writableEnded){
+      res.writeHead(503,{'Content-Type':'application/json','Cache-Control':'no-store'});
+      res.end(JSON.stringify({error:'Não foi possível confirmar a gravação no banco de dados. A notificação não foi enviada; tente novamente.'}));
+    }
+  });
+}
 const loginAttempts=new Map();
 const clients=new Set();
 function apiBootstrap(){return {rooms,products:db.settings.products||products,staff:db.staff.filter(x=>x.active),settings:{floorAssignments:db.settings.floorAssignments||{},configItems:db.settings.configItems||[]}};}
